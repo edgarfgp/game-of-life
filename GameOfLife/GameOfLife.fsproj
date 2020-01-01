@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Models.fs" />
     <Compile Include="GameOfLife.fs" />
   </ItemGroup>
   <ItemGroup>
