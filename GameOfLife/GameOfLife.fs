@@ -1,14 +1,12 @@
 ﻿// Copyright 2018-2019 Fabulous contributors. See LICENSE.md for license.
 namespace GameOfLife
 
-
 open Fabulous
 open Fabulous.XamarinForms
 open Fabulous.XamarinForms.LiveUpdate
 open GameOfLife.Models
 open Xamarin.Forms
 open System
-open Xamarin.Forms
 
 module App =
     type Msg =
@@ -16,25 +14,24 @@ module App =
 
     type Model  =
         { Game : Game
-          GameLoafing : bool
-          IsSelected: bool}
+          GameLoafing : bool }
 
     let init () =
-        { Game = { Columns = 10 ; Rows = 10 } ; GameLoafing = true; IsSelected = false }, Cmd.ofMsg LoadedGame
+        { Game = { Columns = 10 ; Rows = 10 } ; GameLoafing = true }, Cmd.ofMsg LoadedGame
 
-    let gridRef = ViewRef<StackLayout>()
+    let stackLayoutRef = ViewRef<StackLayout>()
 
     let update msg model =
         match msg with
         | LoadedGame ->
-            match gridRef.TryValue with
+            match stackLayoutRef.TryValue with
             | None  -> { model with GameLoafing = true }, Cmd.none
             | Some abs ->
                 let numcolumns= int (Math.Round((abs.Width / float 30)))
                 let numRows = int (Math.Round((abs.Height / float 30)))
                 match (numcolumns * numRows) > 400  with
                 |  true ->
-                    let cellSize = int (Math.Sqrt((abs.Width * abs.Height) /  float 500))
+                    let cellSize = int (Math.Sqrt((abs.Width * abs.Height) /  float 400))
                     let cols = int (abs.Width / (float cellSize))
                     let rows = int (abs.Height / float cellSize)
 
@@ -67,8 +64,7 @@ module App =
 
         View.NavigationPage(
             pages = [
-                View.ContentPage(
-                    title = "Game of Life",
+                View.ContentPage(title = "Game of Life",
                     useSafeArea = true,
                     content =
                         View.StackLayout(
@@ -83,7 +79,7 @@ module App =
                                                     margin = Thickness(0.0, 20.0), borderColor = Color.Green, borderWidth = 1.0, width = 100.0 )
                                             ],
                                             orientation = StackOrientation.Horizontal, backgroundColor = Color.White,
-                                            verticalOptions = LayoutOptions.EndAndExpand)], ref = gridRef))])
+                                            verticalOptions = LayoutOptions.EndAndExpand)], ref = stackLayoutRef))])
 
     let program = Program.mkProgram init update view
 
