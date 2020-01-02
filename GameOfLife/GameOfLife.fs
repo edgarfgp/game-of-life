@@ -4,41 +4,40 @@ namespace GameOfLife
 open Fabulous
 open Fabulous.XamarinForms
 open Fabulous.XamarinForms.LiveUpdate
-open GameOfLife.Models
 open Xamarin.Forms
-open System
+
+module Models =
+    type Location =
+        { X: int
+          Y: int }
+    type State =
+        | Alive
+        | Dead
+    type PositionedCell =
+        { State: State
+          Location: Location }
+    type World = PositionedCell list
 
 module App =
+    open Models
     type Msg =
         | LoadedGame
 
-    type Model  =
-        { Game : Game
-          GameLoafing : bool }
+    type Model =
+        { Dimension: int
+          World: World }
+
+        static member EmptyWord dimension =
+            { Dimension = dimension
+              World = [] }
 
     let init () =
-        { Game = { Columns = 10 ; Rows = 10 } ; GameLoafing = true }, Cmd.ofMsg LoadedGame
-
-    let stackLayoutRef = ViewRef<StackLayout>()
+         Model.EmptyWord 10 , Cmd.none
 
     let update msg model =
         match msg with
         | LoadedGame ->
-            match stackLayoutRef.TryValue with
-            | None  -> { model with GameLoafing = true }, Cmd.none
-            | Some abs ->
-                let numcolumns= int (Math.Round((abs.Width / float 30)))
-                let numRows = int (Math.Round((abs.Height / float 30)))
-                match (numcolumns * numRows) > 400  with
-                |  true ->
-                    let cellSize = int (Math.Sqrt((abs.Width * abs.Height) /  float 400))
-                    let cols = int (abs.Width / (float cellSize))
-                    let rows = int (abs.Height / float cellSize)
-
-                    { model with Game = { Columns = cols ; Rows = rows }; GameLoafing = false }, Cmd.none
-
-                | false ->
-                    { model with Game = { Columns = numcolumns ; Rows = numRows } ; GameLoafing = false }, Cmd.none
+            model , Cmd.none
 
     let view model dispatch =
 
@@ -47,20 +46,15 @@ module App =
                 color = Color.LightBlue, isRunning = true, verticalOptions = LayoutOptions.CenterAndExpand,
                 created = (fun effect -> effect.Color <- Color.White))
 
-        let gridContent cells =
+        let gridContent dimension =
              View.Grid(
-                rowdefs= [ for _ in 1 .. cells.Rows -> Dimension.Star],
-                coldefs = [ for _ in 1 .. cells.Columns -> Dimension.Star],
+                rowdefs= [ for _ in 1 ..dimension -> Dimension.Star],
+                coldefs = [ for _ in 1 .. dimension -> Dimension.Star],
                 children = [
-                   for i in 1 .. cells.Rows do
-                        for j in 1 .. cells.Columns ->
+                   for i in 1 .. dimension do
+                        for j in 1 .. dimension ->
                             View.BoxView(Color.White).Row(i-1).Column(j-1) ],
                 margin = Thickness(8.0))
-
-        let  gameContent =
-            match model.GameLoafing with
-            | true -> loadingView
-            | false -> gridContent model.Game
 
         View.NavigationPage(
             pages = [
@@ -70,7 +64,7 @@ module App =
                         View.StackLayout(
                             backgroundColor = Color.Gray,
                                 children = [
-                                    gameContent
+                                    gridContent model.Dimension
                                     View.StackLayout(
                                             children = [
                                                 View.Button(text = "Play", horizontalOptions = LayoutOptions.CenterAndExpand,
@@ -79,7 +73,7 @@ module App =
                                                     margin = Thickness(0.0, 20.0), borderColor = Color.Green, borderWidth = 1.0, width = 100.0 )
                                             ],
                                             orientation = StackOrientation.Horizontal, backgroundColor = Color.White,
-                                            verticalOptions = LayoutOptions.EndAndExpand)], ref = stackLayoutRef))])
+                                            verticalOptions = LayoutOptions.EndAndExpand)]))])
 
     let program = Program.mkProgram init update view
 
