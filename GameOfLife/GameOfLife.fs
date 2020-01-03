@@ -4,132 +4,21 @@ open Fabulous
 open Fabulous.XamarinForms
 open Fabulous.XamarinForms.LiveUpdate
 open Xamarin.Forms
-
-module Models =
-
-    type State =
-        | Alive
-        | Dead
-
-    type Location =
-        { X: int
-          Y: int }
-
-    type PositionedCell =
-        { State: State
-          Location: Location }
-
-    type Model =
-        { Dimension: int
-          World: PositionedCell list
-          Paused: bool }
-
-    let initModel model states =
-        let allCoordinates =
-            [ 1 .. model.Dimension ]
-            |> List.map (fun x ->
-                [ 1 .. model.Dimension ]
-                |> List.map (fun y ->
-                    { X = x
-                      Y = y }))
-            |> List.concat
-
-        let cells =
-            allCoordinates
-            |> List.zip states
-            |> List.map (fun (state, coords) ->
-                { Location = coords
-                  State = state })
-
-        { model with World = cells }
-
-    let generateRandomList dimension =
-        let result = List.init dimension (fun _ -> System.Random().Next(2))
-        result
-
-    let findNeighboursFor coordinates cells =
-        let deltas =
-            [ (-1, 1)
-              (0, 1)
-              (1, 1)
-              (-1, 0)
-              (1, 0)
-              (-1, -1)
-              (0, -1)
-              (1, -1) ]
-
-        let coordinatesToCheck =
-            deltas
-            |> List.map (fun (dx, dy) ->
-                { X = coordinates.X + dx
-                  Y = coordinates.Y + dy })
-
-        cells
-        |> List.filter (fun cell ->
-            let result = coordinatesToCheck
-            result |> List.exists (fun a -> a.X = cell.Location.X && a.Y = cell.Location.Y))
-
-    let applyRules nbLivingNeighbours cell =
-        let newState =
-            match cell.State with
-            | Dead ->
-                match nbLivingNeighbours with
-                | 3 -> Alive
-                | _ -> Dead
-
-            | Alive ->
-                match nbLivingNeighbours with
-                | 2 -> Alive
-                | 3 -> Alive
-                | _ -> Dead
-
-        { cell with State = newState }
-
-    let tickCell cell world =
-        let neighbours = findNeighboursFor cell.Location world
-
-        let nbLivingNeighbours =
-            neighbours
-            |> List.filter (fun cellState -> cellState.State = Alive)
-            |> List.length
-        applyRules nbLivingNeighbours cell
-
-    let tick model =
-        { model with World = model.World |> List.map (fun cell -> tickCell cell model.World) }
-
-    let flip state =
-        match state with
-        | Alive ->
-            Dead
-        | Dead ->
-            Alive
-
-    let toggleState model cell =
-        let toggled = { cell with State = (flip cell.State) }
-
-        let others =
-            model.World |> List.filter (fun c -> c.State <> cell.State)
-
-        { model with World = toggled :: others }
-
-    let kill cell =
-        { cell with State = Dead }
-
-    let killCells model =
-        { model with World = model.World |> List.map kill }
-
+open GameOfLife.Models
+open System.Timers
 
 module App =
 
-    open Models
-    open System.Timers
     type Msg =
         | Seed of State list
         | TimerTick
         | TogglePause
         | NewWorld
         | ToggleState of PositionedCell
-        | KillCells
+        | ResetCells
+
+    let generateRandomList dimension =
+        List.init dimension (fun _ -> System.Random().Next(2))
 
     let randomStateGenerator dimension =
         let stateList =
@@ -140,18 +29,14 @@ module App =
                 | _ -> Dead)
         Seed stateList
 
-    let emptyWord dimension =
-            { Dimension = dimension
-              World = []
-              Paused = false }
-
     let init () =
-         emptyWord 10 , Cmd.none
+         Model.EmptyWord 10 , Cmd.none
 
     let update msg model =
         match msg with
         | Seed states ->
-            (initModel model states), Cmd.none
+            let newModel = initModel model states
+            newModel, Cmd.none
 
         | TimerTick ->
             match model.Paused with
@@ -167,27 +52,20 @@ module App =
         | ToggleState cell ->
             toggleState model cell, Cmd.none
 
-        | KillCells ->
+        | ResetCells ->
             killCells model, Cmd.none
-
-    let view model _ =
-
-        let createCell cell =
-            let (state, color ) =
-                    match cell.State with
-                        | Alive ->
-                            ( "👾", Color.Gray )
-
-                        | Dead ->
-                            ( "👻", Color.Default )
-
-            View.Button(text = state, backgroundColor = color)
+    let view (model: Model) dispatch =
 
         let createRow cells rowNumber =
             cells
             |> List.filter (fun c -> c.Location.X = rowNumber)
             |> List.sortBy (fun c -> c.Location.Y)
-            |> List.map createCell
+            |> List.map(fun cell ->
+                             let cellState =
+                                match cell.State with
+                                | Alive -> "👾"
+                                | Dead -> "👻"
+                             View.Button(text = cellState))
 
         let gameContent model =
 
@@ -202,7 +80,7 @@ module App =
             let elements = createRow model.World nbRows
 
             View.Grid(
-                rowdefs= [for _ in 1 .. nbRows -> Dimension.Star],
+                rowdefs= [for _ in 1 .. nbRows -> Dimension.Auto],
                 coldefs = [ for _ in 1 .. nbRows -> Dimension.Star],
                 children = [
                     for i in 1 .. nbRows do
@@ -210,12 +88,14 @@ module App =
                             let element = (elements.Item (i-1))
                             element.Row(i-1).Column(j-1)
                 ],
-                margin = Thickness(8.0))
+                margin = Thickness(8.0), verticalOptions = LayoutOptions.CenterAndExpand)
 
         let pauseMessage =
             match model.Paused with
             | true  ->  "Unpause"
             | _ -> "Pause"
+
+        let dimensionText =  "X " + model.Dimension.ToString()
 
         View.NavigationPage(
             pages = [
@@ -225,20 +105,24 @@ module App =
                         View.StackLayout(
                             backgroundColor = Color.Gray,
                                 children = [
-
+                                    View.Label(text= dimensionText,
+                                               fontSize = FontSize 20.,
+                                               fontAttributes = FontAttributes.Bold,
+                                               textColor = Color.White,
+                                               horizontalOptions =LayoutOptions.CenterAndExpand,
+                                               verticalOptions = LayoutOptions.EndAndExpand)
                                     gameContent model
-
                                     View.StackLayout(
                                         children = [
                                                 View.Button(text = pauseMessage, horizontalOptions = LayoutOptions.CenterAndExpand,
+                                                    command = (fun _ -> dispatch TogglePause),
                                                     margin = Thickness(5.0, 20.0), borderColor = Color.Green, borderWidth = 1.0, width = 100.0)
-
                                                 View.Button(text = "Reset", horizontalOptions = LayoutOptions.CenterAndExpand,
+                                                    command = (fun _ -> dispatch ResetCells),
                                                     margin = Thickness(0.0, 20.0), borderColor = Color.Green, borderWidth = 1.0, width = 100.0 )
-
                                                 View.Button(text = "New", horizontalOptions = LayoutOptions.CenterAndExpand,
+                                                    command = (fun _ -> dispatch NewWorld),
                                                     margin = Thickness(0.0, 20.0), borderColor = Color.Green, borderWidth = 1.0, width = 100.0 )
-
                                             ],
                                             orientation = StackOrientation.Horizontal, backgroundColor = Color.White,
                                             verticalOptions = LayoutOptions.EndAndExpand)
@@ -269,5 +153,3 @@ type App () as app =
 #if DEBUG
     do runner.EnableLiveUpdate()
 #endif
-
-
