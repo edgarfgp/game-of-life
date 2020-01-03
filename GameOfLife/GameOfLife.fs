@@ -207,7 +207,7 @@ module App =
                 children = [
                     for i in 1 .. nbRows do
                         for j in 1 .. nbRows ->
-                            let element = (elements.Item 0)
+                            let element = (elements.Item (i-1))
                             element.Row(i-1).Column(j-1)
                 ],
                 margin = Thickness(8.0))
