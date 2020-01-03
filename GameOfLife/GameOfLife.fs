@@ -88,7 +88,7 @@ module App =
                             let element = (elements.Item (i-1))
                             element.Row(i-1).Column(j-1)
                 ],
-                margin = Thickness(8.0), verticalOptions = LayoutOptions.CenterAndExpand)
+                margin = Thickness(8.), verticalOptions = LayoutOptions.CenterAndExpand)
 
         let pauseMessage =
             match model.Paused with
@@ -116,13 +116,13 @@ module App =
                                         children = [
                                                 View.Button(text = pauseMessage, horizontalOptions = LayoutOptions.CenterAndExpand,
                                                     command = (fun _ -> dispatch TogglePause),
-                                                    margin = Thickness(5.0, 20.0), borderColor = Color.Green, borderWidth = 1.0, width = 100.0)
+                                                    margin = Thickness(5., 20.), borderColor = Color.Green, borderWidth = 1.0, width = 100.)
                                                 View.Button(text = "Reset", horizontalOptions = LayoutOptions.CenterAndExpand,
                                                     command = (fun _ -> dispatch ResetCells),
-                                                    margin = Thickness(0.0, 20.0), borderColor = Color.Green, borderWidth = 1.0, width = 100.0 )
+                                                    margin = Thickness(0., 20.), borderColor = Color.Green, borderWidth = 1.0, width = 100.)
                                                 View.Button(text = "New", horizontalOptions = LayoutOptions.CenterAndExpand,
                                                     command = (fun _ -> dispatch NewWorld),
-                                                    margin = Thickness(0.0, 20.0), borderColor = Color.Green, borderWidth = 1.0, width = 100.0 )
+                                                    margin = Thickness(0., 20.), borderColor = Color.Green, borderWidth = 1.0, width = 100.)
                                             ],
                                             orientation = StackOrientation.Horizontal, backgroundColor = Color.White,
                                             verticalOptions = LayoutOptions.EndAndExpand)
