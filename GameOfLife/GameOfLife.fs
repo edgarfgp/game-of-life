@@ -1,6 +1,5 @@
 ﻿namespace GameOfLife
 
-open System
 open Fabulous
 open Fabulous.XamarinForms
 open Fabulous.XamarinForms.LiveUpdate
@@ -45,7 +44,8 @@ module Models =
         { model with World = cells }
 
     let generateRandomList dimension =
-        List.init dimension (fun _ -> System.Random().Next(1, 2))
+        let result = List.init dimension (fun _ -> System.Random().Next(2))
+        result
 
     let findNeighboursFor coordinates cells =
         let deltas =
@@ -122,6 +122,7 @@ module Models =
 module App =
 
     open Models
+    open System.Timers
     type Msg =
         | Seed of State list
         | TimerTick
@@ -145,7 +146,7 @@ module App =
               Paused = false }
 
     let init () =
-         emptyWord 10 , Cmd.ofMsg (randomStateGenerator 10)
+         emptyWord 10 , Cmd.none
 
     let update msg model =
         match msg with
@@ -153,10 +154,9 @@ module App =
             (initModel model states), Cmd.none
 
         | TimerTick ->
-            if model.Paused then
-                ( model, Cmd.none )
-            else
-                ( tick model, Cmd.none )
+            match model.Paused with
+            | true -> model, Cmd.none
+            | _ -> tick model, Cmd.ofMsg (randomStateGenerator  model.Dimension)
 
         | TogglePause ->
             { model with Paused = not model.Paused }, Cmd.none
@@ -165,10 +165,10 @@ module App =
             model, Cmd.ofMsg (randomStateGenerator model.Dimension)
 
         | ToggleState cell ->
-            (toggleState model cell), Cmd.none
+            toggleState model cell, Cmd.none
 
         | KillCells ->
-            ( killCells model, Cmd.none )
+            killCells model, Cmd.none
 
     let view model _ =
 
@@ -176,10 +176,10 @@ module App =
             let (state, color ) =
                     match cell.State with
                         | Alive ->
-                            ( "👾", Color.White )
+                            ( "👾", Color.Gray )
 
                         | Dead ->
-                            ( "👻", Color.Gray )
+                            ( "👻", Color.Default )
 
             View.Button(text = state, backgroundColor = color)
 
@@ -199,7 +199,7 @@ module App =
                     else
                         0
 
-            let result = (createRow model.World nbRows)
+            let elements = createRow model.World nbRows
 
             View.Grid(
                 rowdefs= [for _ in 1 .. nbRows -> Dimension.Star],
@@ -207,8 +207,8 @@ module App =
                 children = [
                     for i in 1 .. nbRows do
                         for j in 1 .. nbRows ->
-                            let item = (result.Item 0)
-                            item.Row(i-1).Column(j-1)
+                            let element = (elements.Item 0)
+                            element.Row(i-1).Column(j-1)
                 ],
                 margin = Thickness(8.0))
 
@@ -248,7 +248,7 @@ module App =
                 ]
             )
     let timerTick dispatch =
-        let timer = new System.Timers.Timer(1.)
+        let timer = new Timer(1000.)
         timer.Elapsed.Subscribe (fun _ -> dispatch TimerTick) |> ignore
         timer.Enabled <- true
         timer.Start()
@@ -261,8 +261,8 @@ type App () as app =
     let runner =
         App.program
 #if DEBUG
-        //|> Program.withSubscription (fun _ -> Cmd.ofSub  App.timerTick)
         |> Program.withConsoleTrace
+        |> Program.withSubscription (fun _ -> Cmd.ofSub  App.timerTick)
 #endif
         |> XamarinFormsProgram.run app
 
